@@ -2,6 +2,7 @@ package alert
 
 import "github.com/influxdata/kapacitor/alert"
 
+// HandlerSpecRegistrar is responsible for registering and persisting handler spec definitions.
 type HandlerSpecRegistrar interface {
 	// RegisterHandlerSpec saves the handler spec and registers a handler defined by the spec
 	RegisterHandlerSpec(HandlerSpec)
@@ -13,14 +14,17 @@ type HandlerSpecRegistrar interface {
 	HandlerSpecs(pattern string) []HandlerSpec
 }
 
+// TopicStatuser is responsible for querying  the status of topics and their events.
 type TopicStatuser interface {
 	// TopicStatus returns the status of all topics that match the pattern and have at least minLevel.
-	TopicStatus(patter string, minLevel alert.Level) []alert.TopicStatus
+	TopicStatus(pattern string, minLevel alert.Level) map[string]alert.TopicStatus
 	// TopicStatusEvents returns the specific events for each topic that matches the pattern.
 	// Only events greater or equal to minLevel will be returned
-	TopicStatusEvents(patter string, minLevel alert.Level) map[string]map[string]alert.EventState
+	TopicStatusEvents(pattern string, minLevel alert.Level) map[string]map[string]alert.EventState
 }
 
+// HandlerRegistrar is responsible for directly registering hander instances.
+// This is to be used only when the origin of the handler is not defined by a handler spec.
 type HandlerRegistrar interface {
 	// RegisterHandler registers the handler instance for the listed topics.
 	RegisterHandler(topics []string, h alert.Handler)
@@ -28,6 +32,7 @@ type HandlerRegistrar interface {
 	DeregisterHandler(topics []string, h alert.Handler)
 }
 
+// Eventer is responsible for accepting events for processing and reporting on the state of events.
 type Eventer interface {
 	// Collect accepts a new event for processing.
 	Collect(event alert.Event) error
@@ -37,6 +42,7 @@ type Eventer interface {
 	EventState(topic, event string) (alert.EventState, bool)
 }
 
+// TopicPersister is responsible for controlling the persistence of topic state.
 type TopicPersister interface {
 	// CloseTopic closes a topic but does not delete its state.
 	CloseTopic(topic string) error
