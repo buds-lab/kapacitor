@@ -10,6 +10,8 @@ type HandlerSpecRegistrar interface {
 	DeregisterHandlerSpec(id string) error
 	// UpdateHandlerSpec updates the old spec with the new spec and takes care of registering new handlers based on the new spec.
 	UpdateHandlerSpec(oldSpec, newSpec HandlerSpec) error
+	// HandlerSpec returns a handler spec
+	HandlerSpec(id string) (HandlerSpec, error)
 	// Handlers returns a list of handler specs that match the pattern.
 	HandlerSpecs(pattern string) ([]HandlerSpec, error)
 }

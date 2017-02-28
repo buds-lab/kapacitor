@@ -920,6 +920,17 @@ func (s *Service) TopicStatusEvents(pattern string, minLevel alert.Level) (map[s
 	return s.topics.TopicStatusEvents(pattern, minLevel), nil
 }
 
+func (s *Service) HandlerSpec(id string) (HandlerSpec, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	h, ok := s.handler[id]
+	if !ok {
+		return HandlerSpec{}, fmt.Errorf("handler %s does not exist", id)
+	}
+	return h.Spec
+}
+
 func (s *Service) HandlerSpecs(pattern string) ([]HandlerSpec, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
