@@ -36,8 +36,7 @@ type handlerAction interface {
 }
 
 type Service struct {
-	mu     sync.RWMutex
-	opened bool
+	mu sync.RWMutex
 
 	specsDAO  HandlerSpecDAO
 	topicsDAO TopicStateDAO
@@ -123,9 +122,6 @@ const alertNamespace = "alert_store"
 func (s *Service) Open() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.opened {
-		return nil
-	}
 
 	// Create DAO
 	store := s.StorageService.Store(alertNamespace)
@@ -155,7 +151,6 @@ func (s *Service) Open() error {
 		return err
 	}
 
-	s.opened = true
 	return nil
 }
 
@@ -504,18 +499,11 @@ func (s *Service) HandlerSpecs(pattern string) ([]HandlerSpec, error) {
 
 	handlers := make([]HandlerSpec, 0, len(s.handlers))
 	for id, h := range s.handlers {
-		if match(pattern, id) {
+		if alert.PatternMatch(pattern, id) {
 			handlers = append(handlers, h.Spec)
 		}
 	}
 	return handlers, nil
-}
-func match(pattern, id string) bool {
-	if pattern == "" {
-		return true
-	}
-	matched, _ := path.Match(pattern, id)
-	return matched
 }
 
 func (s *Service) createHandlerFromSpec(spec HandlerSpec) (handler, error) {
