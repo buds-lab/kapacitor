@@ -924,11 +924,11 @@ func (s *Service) HandlerSpec(id string) (HandlerSpec, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	h, ok := s.handler[id]
+	h, ok := s.handlers[id]
 	if !ok {
 		return HandlerSpec{}, fmt.Errorf("handler %s does not exist", id)
 	}
-	return h.Spec
+	return h.Spec, nil
 }
 
 func (s *Service) HandlerSpecs(pattern string) ([]HandlerSpec, error) {
