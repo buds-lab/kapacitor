@@ -41,8 +41,8 @@ const (
 )
 
 type apiServer struct {
-	registrar    HandlerSpecRegistrar
-	statuser     TopicStatuser
+	Registrar    HandlerSpecRegistrar
+	Statuser     TopicStatuser
 	persister    TopicPersister
 	routes       []httpd.Route
 	HTTPDService interface {
@@ -133,7 +133,7 @@ func (s *apiServer) handleListTopics(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	statuses, err := s.statuser.TopicStatus(pattern, minLevel)
+	statuses, err := s.Statuser.TopicStatus(pattern, minLevel)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to get topic statuses: ", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -304,7 +304,7 @@ func (s *apiServer) handleTopicEvent(t *alert.Topic, w http.ResponseWriter, r *h
 
 func (s *apiServer) handleListTopicHandlers(t *alert.Topic, w http.ResponseWriter, r *http.Request) {
 	var handlers []client.Handler
-	specs, err := s.registrar.HandlerSpecs("")
+	specs, err := s.Registrar.HandlerSpecs("")
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to get handler specs: ", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -338,7 +338,7 @@ func (s *apiServer) handleListHandlers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	specs, err := s.registrar.HandlerSpecs(pattern)
+	specs, err := s.Registrar.HandlerSpecs(pattern)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to get handler specs: ", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -370,7 +370,7 @@ func (s *apiServer) handleCreateHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = s.registrar.RegisterHandlerSpec(handlerSpec)
+	err = s.Registrar.RegisterHandlerSpec(handlerSpec)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to create handler: ", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -383,7 +383,7 @@ func (s *apiServer) handleCreateHandler(w http.ResponseWriter, r *http.Request) 
 
 func (s *apiServer) handlePatchHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, handlersBasePathAnchored)
-	spec, err := s.registrar.HandlerSpec(id)
+	spec, err := s.Registrar.HandlerSpec(id)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("unknown handler: %q", id), true, http.StatusNotFound)
 		return
@@ -419,7 +419,7 @@ func (s *apiServer) handlePatchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.registrar.UpdateHandlerSpec(spec, newSpec); err != nil {
+	if err := s.Registrar.UpdateHandlerSpec(spec, newSpec); err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to update handler: ", err.Error()), true, http.StatusInternalServerError)
 		return
 	}
@@ -432,7 +432,7 @@ func (s *apiServer) handlePatchHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *apiServer) handlePutHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, handlersBasePathAnchored)
-	spec, err := s.registrar.HandlerSpec(id)
+	spec, err := s.Registrar.HandlerSpec(id)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("unknown handler: %q", id), true, http.StatusNotFound)
 		return
@@ -448,7 +448,7 @@ func (s *apiServer) handlePutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.registrar.UpdateHandlerSpec(spec, newSpec); err != nil {
+	if err := s.Registrar.UpdateHandlerSpec(spec, newSpec); err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to update handler: ", err.Error()), true, http.StatusInternalServerError)
 		return
 	}
@@ -461,7 +461,7 @@ func (s *apiServer) handlePutHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *apiServer) handleDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, handlersBasePathAnchored)
-	if err := s.registrar.DeregisterHandlerSpec(id); err != nil {
+	if err := s.Registrar.DeregisterHandlerSpec(id); err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to delete handler: ", err.Error()), true, http.StatusInternalServerError)
 		return
 	}
@@ -470,7 +470,7 @@ func (s *apiServer) handleDeleteHandler(w http.ResponseWriter, r *http.Request) 
 
 func (s *apiServer) handleGetHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, handlersBasePathAnchored)
-	spec, err := s.registrar.HandlerSpec(id)
+	spec, err := s.Registrar.HandlerSpec(id)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("unknown handler: %q", id), true, http.StatusNotFound)
 		return

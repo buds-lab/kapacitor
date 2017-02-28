@@ -110,8 +110,8 @@ func NewService(c Config, l *log.Logger) *Service {
 		logger:       l,
 	}
 	s.APIServer = &apiServer{
-		registrar: s,
-		statuser:  s,
+		Registrar: s,
+		Statuser:  s,
 		persister: s,
 	}
 	return s
