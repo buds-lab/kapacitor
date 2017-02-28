@@ -151,6 +151,7 @@ func ParseLevel(s string) (l Level, err error) {
 }
 
 type TopicStatus struct {
+	Topic     string
 	Level     Level
 	Collected int64
 }
