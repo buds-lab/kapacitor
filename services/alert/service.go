@@ -304,7 +304,11 @@ func (s *Service) handleListTopics(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	statuses := s.TopicStatus(pattern, minLevel)
+	statuses, err := s.TopicStatus(pattern, minLevel)
+	if err != nil {
+		httpd.HttpError(w, fmt.Sprint("failed to get topic statuses: ", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
 	list := make([]client.Topic, 0, len(statuses))
 	for topic, status := range statuses {
 		list = append(list, s.createClientTopic(topic, status))
@@ -536,7 +540,11 @@ func (s *Service) handleListHandlers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	specs := s.HandlerSpecs(pattern)
+	specs, err := s.HandlerSpecs(pattern)
+	if err != nil {
+		httpd.HttpError(w, fmt.Sprint("failed to get handler specs: ", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
 	list := make([]client.Handler, len(specs))
 	for i := range specs {
 		list[i] = s.convertHandlerSpec(specs[i])
@@ -902,17 +910,17 @@ func (s *Service) UpdateHandlerSpec(oldSpec, newSpec HandlerSpec) error {
 
 // TopicStatus returns the max alert level for each topic matching 'pattern', not returning
 // any topics with max alert levels less severe than 'minLevel'
-func (s *Service) TopicStatus(pattern string, minLevel alert.Level) map[string]alert.TopicStatus {
-	return s.topics.TopicStatus(pattern, minLevel)
+func (s *Service) TopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error) {
+	return s.topics.TopicStatus(pattern, minLevel), nil
 }
 
 // TopicStatusDetails is similar to TopicStatus, but will additionally return
 // at least 'minLevel' severity
-func (s *Service) TopicStatusEvents(pattern string, minLevel alert.Level) map[string]map[string]alert.EventState {
-	return s.topics.TopicStatusEvents(pattern, minLevel)
+func (s *Service) TopicStatusEvents(pattern string, minLevel alert.Level) (map[string]map[string]alert.EventState, error) {
+	return s.topics.TopicStatusEvents(pattern, minLevel), nil
 }
 
-func (s *Service) HandlerSpecs(pattern string) []HandlerSpec {
+func (s *Service) HandlerSpecs(pattern string) ([]HandlerSpec, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -922,7 +930,7 @@ func (s *Service) HandlerSpecs(pattern string) []HandlerSpec {
 			handlers = append(handlers, h.Spec)
 		}
 	}
-	return handlers
+	return handlers, nil
 }
 func match(pattern, id string) bool {
 	if pattern == "" {

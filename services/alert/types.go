@@ -5,22 +5,22 @@ import "github.com/influxdata/kapacitor/alert"
 // HandlerSpecRegistrar is responsible for registering and persisting handler spec definitions.
 type HandlerSpecRegistrar interface {
 	// RegisterHandlerSpec saves the handler spec and registers a handler defined by the spec
-	RegisterHandlerSpec(HandlerSpec)
+	RegisterHandlerSpec(HandlerSpec) error
 	// DeregisterHandlerSpec deletes the handler spec and deregisters the defined handler.
-	DeregisterHandlerSpec(id string)
+	DeregisterHandlerSpec(id string) error
 	// UpdateHandlerSpec updates the old spec with the new spec and takes care of registering new handlers based on the new spec.
-	UpdateHandlerSpec(oldSpec, newSpec HandlerSpec)
+	UpdateHandlerSpec(oldSpec, newSpec HandlerSpec) error
 	// Handlers returns a list of handler specs that match the pattern.
-	HandlerSpecs(pattern string) []HandlerSpec
+	HandlerSpecs(pattern string) ([]HandlerSpec, error)
 }
 
 // TopicStatuser is responsible for querying  the status of topics and their events.
 type TopicStatuser interface {
 	// TopicStatus returns the status of all topics that match the pattern and have at least minLevel.
-	TopicStatus(pattern string, minLevel alert.Level) map[string]alert.TopicStatus
+	TopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error)
 	// TopicStatusEvents returns the specific events for each topic that matches the pattern.
 	// Only events greater or equal to minLevel will be returned
-	TopicStatusEvents(pattern string, minLevel alert.Level) map[string]map[string]alert.EventState
+	TopicStatusEvents(pattern string, minLevel alert.Level) (map[string]map[string]alert.EventState, error)
 }
 
 // HandlerRegistrar is responsible for directly registering hander instances.
