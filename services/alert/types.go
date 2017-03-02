@@ -16,13 +16,20 @@ type HandlerSpecRegistrar interface {
 	HandlerSpecs(pattern string) ([]HandlerSpec, error)
 }
 
-// TopicStatuser is responsible for querying  the status of topics and their events.
-type TopicStatuser interface {
-	// TopicStatus returns the status of all topics that match the pattern and have at least minLevel.
-	TopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error)
-	// TopicStatusEvents returns the specific events for each topic that matches the pattern.
+// Topics is responsible for querying  the status of topics and their events.
+type Topics interface {
+	// TopicStatus returns the status of the specified topic,
+	TopicStatus(topic string) (alert.TopicStatus, error)
+
+	// TopicStatusEvents returns the current state of events for the specified topic.
 	// Only events greater or equal to minLevel will be returned
-	TopicStatusEvents(pattern string, minLevel alert.Level) (map[string]map[string]alert.EventState, error)
+	TopicStatusEvents(topic string, minLevel alert.Level) (map[string]alert.EventState, error)
+
+	// TopicEventState returns the current state of the event.
+	TopicEventState(topic, event string) (alert.EventState, bool)
+
+	// ListTopicStatus returns the status of all topics that match the pattern and have at least minLevel.
+	ListTopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error)
 }
 
 // AnonHandlerRegistrar is responsible for directly registering handlers for anonymous topics.
@@ -34,14 +41,14 @@ type AnonHandlerRegistrar interface {
 	DeregisterAnonHandler(topics []string, h alert.Handler)
 }
 
-// Eventer is responsible for accepting events for processing and reporting on the state of events.
-type Eventer interface {
+// Events is responsible for accepting events for processing and reporting on the state of events.
+type Events interface {
 	// Collect accepts a new event for processing.
 	Collect(event alert.Event) error
 	// UpdateEvent updates an existing event with a previously known state.
 	UpdateEvent(topic string, event alert.EventState) error
-	// EventState returns the current events state.
-	EventState(topic, event string) (alert.EventState, bool)
+	// TopicEventState returns the current events state.
+	TopicEventState(topic, event string) (alert.EventState, bool)
 }
 
 // TopicPersister is responsible for controlling the persistence of topic state.

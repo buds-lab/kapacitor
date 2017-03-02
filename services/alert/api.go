@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"path"
 	"sort"
@@ -42,14 +43,14 @@ const (
 
 type apiServer struct {
 	Registrar    HandlerSpecRegistrar
-	Statuser     TopicStatuser
+	Topics       Topics
 	Persister    TopicPersister
-	topics       *alert.Topics
 	routes       []httpd.Route
 	HTTPDService interface {
 		AddPreviewRoutes([]httpd.Route) error
 		DelRoutes([]httpd.Route)
 	}
+	logger *log.Logger
 }
 
 func (s *apiServer) Open() error {
@@ -134,7 +135,7 @@ func (s *apiServer) handleListTopics(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	statuses, err := s.Statuser.TopicStatus(pattern, minLevel)
+	statuses, err := s.Topics.ListTopicStatus(pattern, minLevel)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprint("failed to get topic statuses: ", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -181,21 +182,16 @@ func (s *apiServer) handleDeleteTopic(w http.ResponseWriter, r *http.Request) {
 func (s *apiServer) handleRouteTopic(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, topicsBasePathAnchored)
 	id := s.topicIDFromPath(p)
-	t, ok := s.topics.Topic(id)
-	if !ok {
-		httpd.HttpError(w, fmt.Sprintf("topic %q does not exist", id), true, http.StatusNotFound)
-		return
-	}
 
 	switch {
 	case pathMatch(eventsPattern, p):
-		s.handleListTopicEvents(t, w, r)
+		s.handleListTopicEvents(id, w, r)
 	case pathMatch(eventPattern, p):
-		s.handleTopicEvent(t, w, r)
+		s.handleTopicEvent(id, w, r)
 	case pathMatch(handlersPattern, p):
-		s.handleListTopicHandlers(t, w, r)
+		s.handleListTopicHandlers(id, w, r)
 	default:
-		s.handleTopic(t, w, r)
+		s.handleTopic(id, w, r)
 	}
 }
 
@@ -229,8 +225,13 @@ func (s *apiServer) createClientTopic(topic string, status alert.TopicStatus) cl
 	}
 }
 
-func (s *apiServer) handleTopic(t *alert.Topic, w http.ResponseWriter, r *http.Request) {
-	topic := s.createClientTopic(t.ID(), t.Status())
+func (s *apiServer) handleTopic(id string, w http.ResponseWriter, r *http.Request) {
+	status, err := s.Topics.TopicStatus(id)
+	if err != nil {
+		httpd.HttpError(w, fmt.Sprintf("failed to get topic status: %s", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
+	topic := s.createClientTopic(id, status)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(httpd.MarshalJSON(topic, true))
@@ -263,22 +264,26 @@ func (s *apiServer) convertHandlerSpec(spec HandlerSpec) client.Handler {
 	}
 }
 
-func (s *apiServer) handleListTopicEvents(t *alert.Topic, w http.ResponseWriter, r *http.Request) {
+func (s *apiServer) handleListTopicEvents(topic string, w http.ResponseWriter, r *http.Request) {
 	minLevelStr := r.URL.Query().Get("min-level")
 	minLevel, err := alert.ParseLevel(minLevelStr)
 	if err != nil {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	events := t.EventStates(minLevel)
+	events, err := s.Topics.TopicStatusEvents(topic, minLevel)
+	if err != nil {
+		httpd.HttpError(w, fmt.Sprintf("failed to get topic events: %s", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
 	res := client.TopicEvents{
-		Link:   s.topicEventsLink(t.ID(), client.Self),
-		Topic:  t.ID(),
+		Link:   s.topicEventsLink(topic, client.Self),
+		Topic:  topic,
 		Events: make([]client.TopicEvent, 0, len(events)),
 	}
 	for id, state := range events {
 		res.Events = append(res.Events, client.TopicEvent{
-			Link:  s.topicEventLink(t.ID(), id),
+			Link:  s.topicEventLink(topic, id),
 			ID:    id,
 			State: s.convertEventStateToClient(state),
 		})
@@ -287,23 +292,23 @@ func (s *apiServer) handleListTopicEvents(t *alert.Topic, w http.ResponseWriter,
 	w.Write(httpd.MarshalJSON(res, true))
 }
 
-func (s *apiServer) handleTopicEvent(t *alert.Topic, w http.ResponseWriter, r *http.Request) {
-	id := path.Base(r.URL.Path)
-	state, ok := t.EventState(id)
+func (s *apiServer) handleTopicEvent(topic string, w http.ResponseWriter, r *http.Request) {
+	eventID := path.Base(r.URL.Path)
+	state, ok := s.Topics.TopicEventState(topic, eventID)
 	if !ok {
-		httpd.HttpError(w, fmt.Sprintf("event %q does not exist for topic %q", id, t.ID()), true, http.StatusNotFound)
+		httpd.HttpError(w, fmt.Sprintf("event %q does not exist for topic %q", eventID, topic), true, http.StatusNotFound)
 		return
 	}
 	event := client.TopicEvent{
-		Link:  s.topicEventLink(t.ID(), id),
-		ID:    id,
+		Link:  s.topicEventLink(topic, eventID),
+		ID:    eventID,
 		State: s.convertEventStateToClient(state),
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(httpd.MarshalJSON(event, true))
 }
 
-func (s *apiServer) handleListTopicHandlers(t *alert.Topic, w http.ResponseWriter, r *http.Request) {
+func (s *apiServer) handleListTopicHandlers(topic string, w http.ResponseWriter, r *http.Request) {
 	var handlers []client.Handler
 	specs, err := s.Registrar.HandlerSpecs("")
 	if err != nil {
@@ -312,14 +317,14 @@ func (s *apiServer) handleListTopicHandlers(t *alert.Topic, w http.ResponseWrite
 	}
 
 	for _, spec := range specs {
-		if spec.HasTopic(t.ID()) {
+		if spec.HasTopic(topic) {
 			handlers = append(handlers, s.convertHandlerSpec(spec))
 		}
 	}
 	sort.Sort(sortedHandlers(handlers))
 	th := client.TopicHandlers{
-		Link:     s.topicHandlersLink(t.ID(), client.Self),
-		Topic:    t.ID(),
+		Link:     s.topicHandlersLink(topic, client.Self),
+		Topic:    topic,
 		Handlers: handlers,
 	}
 	w.WriteHeader(http.StatusOK)

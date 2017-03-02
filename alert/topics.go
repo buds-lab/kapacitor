@@ -186,27 +186,6 @@ func (s *Topics) TopicStatus(pattern string, minLevel Level) map[string]TopicSta
 	return res
 }
 
-// TopicStatusDetails is similar to TopicStatus, but will additionally return
-// at least 'minLevel' severity
-func (s *Topics) TopicStatusEvents(pattern string, minLevel Level) map[string]map[string]EventState {
-	s.mu.RLock()
-	topics := make([]*Topic, 0, len(s.topics))
-	for _, topic := range s.topics {
-		if topic.MaxLevel() >= minLevel && PatternMatch(pattern, topic.id) {
-			topics = append(topics, topic)
-		}
-	}
-	s.mu.RUnlock()
-
-	res := make(map[string]map[string]EventState, len(topics))
-
-	for _, topic := range topics {
-		res[topic.ID()] = topic.EventStates(minLevel)
-	}
-
-	return res
-}
-
 func PatternMatch(pattern, id string) bool {
 	if pattern == "" {
 		return true
