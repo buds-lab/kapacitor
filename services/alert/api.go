@@ -113,7 +113,9 @@ func (s *apiServer) Open() error {
 }
 
 func (s *apiServer) Close() error {
-	s.HTTPDService.DelRoutes(s.routes)
+	if s.HTTPDService != nil {
+		s.HTTPDService.DelRoutes(s.routes)
+	}
 	return nil
 }
 
