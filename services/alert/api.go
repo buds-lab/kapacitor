@@ -135,14 +135,14 @@ func (s *apiServer) handleListTopics(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	statuses, err := s.Topics.ListTopicStatus(pattern, minLevel)
+	states, err := s.Topics.TopicStates(pattern, minLevel)
 	if err != nil {
-		httpd.HttpError(w, fmt.Sprint("failed to get topic statuses: ", err.Error()), true, http.StatusInternalServerError)
+		httpd.HttpError(w, fmt.Sprint("failed to get topic states: ", err.Error()), true, http.StatusInternalServerError)
 		return
 	}
-	list := make([]client.Topic, 0, len(statuses))
-	for topic, status := range statuses {
-		list = append(list, s.createClientTopic(topic, status))
+	list := make([]client.Topic, 0, len(states))
+	for topic, state := range states {
+		list = append(list, s.createClientTopic(topic, state))
 	}
 	sort.Sort(sortedTopics(list))
 
@@ -214,24 +214,24 @@ func (s *apiServer) topicHandlerLink(topic, handler string) client.Link {
 	return client.Link{Relation: client.Self, Href: path.Join(topicsBasePath, topic, topicHandlersPath, handler)}
 }
 
-func (s *apiServer) createClientTopic(topic string, status alert.TopicStatus) client.Topic {
+func (s *apiServer) createClientTopic(topic string, state alert.TopicState) client.Topic {
 	return client.Topic{
 		ID:           topic,
 		Link:         s.topicLink(topic),
-		Level:        status.Level.String(),
-		Collected:    status.Collected,
+		Level:        state.Level.String(),
+		Collected:    state.Collected,
 		EventsLink:   s.topicEventsLink(topic, eventsRelation),
 		HandlersLink: s.topicHandlersLink(topic, handlersRelation),
 	}
 }
 
 func (s *apiServer) handleTopic(id string, w http.ResponseWriter, r *http.Request) {
-	status, err := s.Topics.TopicStatus(id)
+	state, err := s.Topics.TopicState(id)
 	if err != nil {
-		httpd.HttpError(w, fmt.Sprintf("failed to get topic status: %s", err.Error()), true, http.StatusInternalServerError)
+		httpd.HttpError(w, fmt.Sprintf("failed to get topic state: %s", err.Error()), true, http.StatusInternalServerError)
 		return
 	}
-	topic := s.createClientTopic(id, status)
+	topic := s.createClientTopic(id, state)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(httpd.MarshalJSON(topic, true))
@@ -271,7 +271,7 @@ func (s *apiServer) handleListTopicEvents(topic string, w http.ResponseWriter, r
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
-	events, err := s.Topics.TopicStatusEvents(topic, minLevel)
+	events, err := s.Topics.EventStates(topic, minLevel)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("failed to get topic events: %s", err.Error()), true, http.StatusInternalServerError)
 		return
@@ -294,7 +294,7 @@ func (s *apiServer) handleListTopicEvents(topic string, w http.ResponseWriter, r
 
 func (s *apiServer) handleTopicEvent(topic string, w http.ResponseWriter, r *http.Request) {
 	eventID := path.Base(r.URL.Path)
-	state, ok := s.Topics.TopicEventState(topic, eventID)
+	state, ok := s.Topics.EventState(topic, eventID)
 	if !ok {
 		httpd.HttpError(w, fmt.Sprintf("event %q does not exist for topic %q", eventID, topic), true, http.StatusNotFound)
 		return

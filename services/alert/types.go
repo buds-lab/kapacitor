@@ -16,20 +16,18 @@ type HandlerSpecRegistrar interface {
 	HandlerSpecs(pattern string) ([]HandlerSpec, error)
 }
 
-// Topics is responsible for querying  the status of topics and their events.
+// Topics is responsible for querying  the state of topics and their events.
 type Topics interface {
-	// TopicStatus returns the status of the specified topic,
-	TopicStatus(topic string) (alert.TopicStatus, error)
+	// TopicState returns the state of the specified topic,
+	TopicState(topic string) (alert.TopicState, error)
+	// TopicStates returns the state of all topics that match the pattern and have at least minLevel.
+	TopicStates(pattern string, minLevel alert.Level) (map[string]alert.TopicState, error)
 
-	// TopicStatusEvents returns the current state of events for the specified topic.
+	// EventState returns the current state of the event.
+	EventState(topic, event string) (alert.EventState, bool)
+	// EventStates returns the current state of events for the specified topic.
 	// Only events greater or equal to minLevel will be returned
-	TopicStatusEvents(topic string, minLevel alert.Level) (map[string]alert.EventState, error)
-
-	// TopicEventState returns the current state of the event.
-	TopicEventState(topic, event string) (alert.EventState, bool)
-
-	// ListTopicStatus returns the status of all topics that match the pattern and have at least minLevel.
-	ListTopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error)
+	EventStates(topic string, minLevel alert.Level) (map[string]alert.EventState, error)
 }
 
 // AnonHandlerRegistrar is responsible for directly registering handlers for anonymous topics.
@@ -47,8 +45,8 @@ type Events interface {
 	Collect(event alert.Event) error
 	// UpdateEvent updates an existing event with a previously known state.
 	UpdateEvent(topic string, event alert.EventState) error
-	// TopicEventState returns the current events state.
-	TopicEventState(topic, event string) (alert.EventState, bool)
+	// EventState returns the current events state.
+	EventState(topic, event string) (alert.EventState, bool)
 }
 
 // TopicPersister is responsible for controlling the persistence of topic state.

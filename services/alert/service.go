@@ -247,14 +247,6 @@ func validatePattern(pattern string) error {
 	return err
 }
 
-func (s *Service) TopicEventState(topic, event string) (alert.EventState, bool) {
-	t, ok := s.topics.Topic(topic)
-	if !ok {
-		return alert.EventState{}, false
-	}
-	return t.EventState(event)
-}
-
 func (s *Service) Collect(event alert.Event) error {
 	s.mu.RLock()
 	closed := s.closedTopics[event.Topic]
@@ -464,29 +456,38 @@ func (s *Service) UpdateHandlerSpec(oldSpec, newSpec HandlerSpec) error {
 	return nil
 }
 
-// TopicStatus returns the status for the specified topic.
-func (s *Service) TopicStatus(topic string) (alert.TopicStatus, error) {
+// TopicState returns the state for the specified topic.
+func (s *Service) TopicState(topic string) (alert.TopicState, error) {
 	t, ok := s.topics.Topic(topic)
 	if !ok {
-		return alert.TopicStatus{}, fmt.Errorf("unknown topic %q", topic)
+		return alert.TopicState{}, fmt.Errorf("unknown topic %q", topic)
 	}
-	return t.Status(), nil
+	return t.State(), nil
 }
 
-// TopicStatusEvents returns the current state of events for the specified topic.
+// TopicStates returns the max alert level for each topic matching 'pattern', not returning
+// any topics with max alert levels less severe than 'minLevel'
+func (s *Service) TopicStates(pattern string, minLevel alert.Level) (map[string]alert.TopicState, error) {
+	return s.topics.TopicState(pattern, minLevel), nil
+}
+
+// EventState returns the current state of the event.
+func (s *Service) EventState(topic, event string) (alert.EventState, bool) {
+	t, ok := s.topics.Topic(topic)
+	if !ok {
+		return alert.EventState{}, false
+	}
+	return t.EventState(event)
+}
+
+// EventStates returns the current state of events for the specified topic.
 // Only events greater or equal to minLevel will be returned
-func (s *Service) TopicStatusEvents(topic string, minLevel alert.Level) (map[string]alert.EventState, error) {
+func (s *Service) EventStates(topic string, minLevel alert.Level) (map[string]alert.EventState, error) {
 	t, ok := s.topics.Topic(topic)
 	if !ok {
 		return nil, fmt.Errorf("unknown topic %q", topic)
 	}
 	return t.EventStates(minLevel), nil
-}
-
-// ListTopicStatus returns the max alert level for each topic matching 'pattern', not returning
-// any topics with max alert levels less severe than 'minLevel'
-func (s *Service) ListTopicStatus(pattern string, minLevel alert.Level) (map[string]alert.TopicStatus, error) {
-	return s.topics.TopicStatus(pattern, minLevel), nil
 }
 
 func (s *Service) HandlerSpec(id string) (HandlerSpec, error) {
