@@ -43,7 +43,8 @@ const (
 type apiServer struct {
 	Registrar    HandlerSpecRegistrar
 	Statuser     TopicStatuser
-	persister    TopicPersister
+	Persister    TopicPersister
+	topics       *alert.Topics
 	routes       []httpd.Route
 	HTTPDService interface {
 		AddPreviewRoutes([]httpd.Route) error
@@ -170,7 +171,7 @@ func pathMatch(pattern, p string) (match bool) {
 func (s *apiServer) handleDeleteTopic(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, topicsBasePathAnchored)
 	id := s.topicIDFromPath(p)
-	if err := s.persister.DeleteTopic(id); err != nil {
+	if err := s.Persister.DeleteTopic(id); err != nil {
 		httpd.HttpError(w, fmt.Sprintf("failed to delete topic %q: %v", id, err), true, http.StatusInternalServerError)
 		return
 	}
@@ -180,7 +181,7 @@ func (s *apiServer) handleDeleteTopic(w http.ResponseWriter, r *http.Request) {
 func (s *apiServer) handleRouteTopic(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, topicsBasePathAnchored)
 	id := s.topicIDFromPath(p)
-	t, ok := s.persister.topic(id)
+	t, ok := s.topics.Topic(id)
 	if !ok {
 		httpd.HttpError(w, fmt.Sprintf("topic %q does not exist", id), true, http.StatusNotFound)
 		return

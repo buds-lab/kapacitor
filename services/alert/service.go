@@ -111,7 +111,8 @@ func NewService(c Config, l *log.Logger) *Service {
 	s.APIServer = &apiServer{
 		Registrar: s,
 		Statuser:  s,
-		persister: s,
+		Persister: s,
+		topics:    s.topics,
 	}
 	return s
 }
@@ -322,13 +323,6 @@ func (s *Service) restoreTopic(topic string) error {
 	return nil
 }
 
-func (s *Service) topic(id string) (*alert.Topic, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	t, ok := s.topics.Topic(id)
-	return t, ok
-}
-
 func (s *Service) RestoreTopic(topic string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -360,11 +354,11 @@ func (s *Service) UpdateEvent(topic string, event alert.EventState) error {
 	return s.persistTopicState(topic)
 }
 
-func (s *Service) RegisterHandler(topics []string, h alert.Handler) {
+func (s *Service) RegisterAnonHandler(topics []string, h alert.Handler) {
 	s.topics.RegisterHandler(topics, h)
 }
 
-func (s *Service) DeregisterHandler(topics []string, h alert.Handler) {
+func (s *Service) DeregisterAnonHandler(topics []string, h alert.Handler) {
 	s.topics.DeregisterHandler(topics, h)
 }
 

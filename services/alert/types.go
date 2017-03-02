@@ -25,13 +25,13 @@ type TopicStatuser interface {
 	TopicStatusEvents(pattern string, minLevel alert.Level) (map[string]map[string]alert.EventState, error)
 }
 
-// HandlerRegistrar is responsible for directly registering hander instances.
+// AnonHandlerRegistrar is responsible for directly registering handlers for anonymous topics.
 // This is to be used only when the origin of the handler is not defined by a handler spec.
-type HandlerRegistrar interface {
+type AnonHandlerRegistrar interface {
 	// RegisterHandler registers the handler instance for the listed topics.
-	RegisterHandler(topics []string, h alert.Handler)
+	RegisterAnonHandler(topics []string, h alert.Handler)
 	// DeregisterHandler removes the handler from the listed topics.
-	DeregisterHandler(topics []string, h alert.Handler)
+	DeregisterAnonHandler(topics []string, h alert.Handler)
 }
 
 // Eventer is responsible for accepting events for processing and reporting on the state of events.
@@ -52,6 +52,4 @@ type TopicPersister interface {
 	DeleteTopic(topic string) error
 	// RestoreTopic signals that a topic should be restored from persisted state.
 	RestoreTopic(topic string) error
-	// Topic returns an topic if it exists.
-	topic(id string) (*alert.Topic, bool)
 }
