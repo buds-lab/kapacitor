@@ -16,15 +16,15 @@ type HandlerSpecRegistrar interface {
 	HandlerSpecs(pattern string) ([]HandlerSpec, error)
 }
 
-// Topics is responsible for querying  the state of topics and their events.
+// Topics is responsible for querying the state of topics and their events.
 type Topics interface {
 	// TopicState returns the state of the specified topic,
-	TopicState(topic string) (alert.TopicState, error)
+	TopicState(topic string) (alert.TopicState, bool, error)
 	// TopicStates returns the state of all topics that match the pattern and have at least minLevel.
 	TopicStates(pattern string, minLevel alert.Level) (map[string]alert.TopicState, error)
 
 	// EventState returns the current state of the event.
-	EventState(topic, event string) (alert.EventState, bool)
+	EventState(topic, event string) (alert.EventState, bool, error)
 	// EventStates returns the current state of events for the specified topic.
 	// Only events greater or equal to minLevel will be returned
 	EventStates(topic string, minLevel alert.Level) (map[string]alert.EventState, error)
@@ -46,7 +46,7 @@ type Events interface {
 	// UpdateEvent updates an existing event with a previously known state.
 	UpdateEvent(topic string, event alert.EventState) error
 	// EventState returns the current events state.
-	EventState(topic, event string) (alert.EventState, bool)
+	EventState(topic, event string) (alert.EventState, bool, error)
 }
 
 // TopicPersister is responsible for controlling the persistence of topic state.

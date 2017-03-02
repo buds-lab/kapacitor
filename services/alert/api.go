@@ -226,9 +226,13 @@ func (s *apiServer) createClientTopic(topic string, state alert.TopicState) clie
 }
 
 func (s *apiServer) handleTopic(id string, w http.ResponseWriter, r *http.Request) {
-	state, err := s.Topics.TopicState(id)
+	state, ok, err := s.Topics.TopicState(id)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("failed to get topic state: %s", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		httpd.HttpError(w, fmt.Sprintf("unknown topic: %q", id), true, http.StatusNotFound)
 		return
 	}
 	topic := s.createClientTopic(id, state)
@@ -294,9 +298,13 @@ func (s *apiServer) handleListTopicEvents(topic string, w http.ResponseWriter, r
 
 func (s *apiServer) handleTopicEvent(topic string, w http.ResponseWriter, r *http.Request) {
 	eventID := path.Base(r.URL.Path)
-	state, ok := s.Topics.EventState(topic, eventID)
+	state, ok, err := s.Topics.EventState(topic, eventID)
+	if err != nil {
+		httpd.HttpError(w, fmt.Sprintf("failed to get event state: %s", err.Error()), true, http.StatusInternalServerError)
+		return
+	}
 	if !ok {
-		httpd.HttpError(w, fmt.Sprintf("event %q does not exist for topic %q", eventID, topic), true, http.StatusNotFound)
+		httpd.HttpError(w, fmt.Sprintf("unknown event %q in topic %q", eventID, topic), true, http.StatusNotFound)
 		return
 	}
 	event := client.TopicEvent{

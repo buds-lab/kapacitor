@@ -730,14 +730,20 @@ func (a *AlertNode) restoreEventState(id string) (alert.Level, time.Time) {
 	var anonFound, topicFound bool
 	// Check for previous state on anonTopic
 	if a.hasAnonTopic() {
-		if state, ok := a.et.tm.AlertService.EventState(a.anonTopic, id); ok {
+		if state, ok, err := a.et.tm.AlertService.EventState(a.anonTopic, id); err != nil {
+			a.incrementErrorCount()
+			a.logger.Printf("E! failed to get event state for anonymous topic %s, event %s: %v", a.anonTopic, id, err)
+		} else if ok {
 			anonTopicState = state
 			anonFound = true
 		}
 	}
 	// Check for previous state on topic.
 	if a.hasTopic() {
-		if state, ok := a.et.tm.AlertService.EventState(a.topic, id); ok {
+		if state, ok, err := a.et.tm.AlertService.EventState(a.topic, id); err != nil {
+			a.incrementErrorCount()
+			a.logger.Printf("E! failed to get event state for topic %s, event %s: %v", a.topic, id, err)
+		} else if ok {
 			topicState = state
 			topicFound = true
 		}

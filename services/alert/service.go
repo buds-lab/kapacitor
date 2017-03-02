@@ -457,12 +457,12 @@ func (s *Service) UpdateHandlerSpec(oldSpec, newSpec HandlerSpec) error {
 }
 
 // TopicState returns the state for the specified topic.
-func (s *Service) TopicState(topic string) (alert.TopicState, error) {
+func (s *Service) TopicState(topic string) (alert.TopicState, bool, error) {
 	t, ok := s.topics.Topic(topic)
 	if !ok {
-		return alert.TopicState{}, fmt.Errorf("unknown topic %q", topic)
+		return alert.TopicState{}, false, nil
 	}
-	return t.State(), nil
+	return t.State(), true, nil
 }
 
 // TopicStates returns the max alert level for each topic matching 'pattern', not returning
@@ -472,12 +472,13 @@ func (s *Service) TopicStates(pattern string, minLevel alert.Level) (map[string]
 }
 
 // EventState returns the current state of the event.
-func (s *Service) EventState(topic, event string) (alert.EventState, bool) {
+func (s *Service) EventState(topic, event string) (alert.EventState, bool, error) {
 	t, ok := s.topics.Topic(topic)
 	if !ok {
-		return alert.EventState{}, false
+		return alert.EventState{}, false, nil
 	}
-	return t.EventState(event)
+	state, ok := t.EventState(event)
+	return state, ok, nil
 }
 
 // EventStates returns the current state of events for the specified topic.
