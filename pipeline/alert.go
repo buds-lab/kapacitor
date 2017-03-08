@@ -492,7 +492,7 @@ func (a *AlertNode) Post(urls ...string) *PostHandler {
 	}
 	a.PostHandlers = append(a.PostHandlers, post)
 
-	if urls == nil {
+	if len(urls) == 0 {
 		return post
 	}
 

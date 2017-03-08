@@ -2,9 +2,10 @@ package alertpost
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/influxdata/kapacitor/alert"
@@ -13,15 +14,16 @@ import (
 )
 
 type Service struct {
-	configValue atomic.Value
-	logger      *log.Logger
+	mu        sync.RWMutex
+	endpoints map[string]Config
+	logger    *log.Logger
 }
 
 func NewService(c Configs, l *log.Logger) *Service {
 	s := &Service{
-		logger: l,
+		logger:    l,
+		endpoints: c.index(),
 	}
-	s.configValue.Store(c)
 	return s
 }
 
@@ -31,6 +33,7 @@ type HandlerConfig struct {
 }
 
 type handler struct {
+	s        *Service
 	bp       *bufpool.Pool
 	url      string
 	endpoint string
@@ -39,6 +42,7 @@ type handler struct {
 
 func (s *Service) Handler(c HandlerConfig, l *log.Logger) alert.Handler {
 	return &handler{
+		s:        s,
 		bp:       bufpool.New(),
 		url:      c.URL,
 		endpoint: c.Endpoint,
@@ -54,8 +58,23 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func (s *Service) Update(newConfig []interface{}) error {
-	// TODO: implement
+func (s *Service) endpoint(e string) (c Config, ok bool) {
+	s.mu.RLock()
+	c, ok = s.endpoints[e]
+	s.mu.RUnlock()
+	return
+}
+
+func (s *Service) Update(newConfigs []interface{}) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, nc := range newConfigs {
+		if c, ok := nc.(Config); ok {
+			s.endpoints[c.Endpoint] = c
+		} else {
+			return fmt.Errorf("unexpected config object type, got %T exp %T", nc, c)
+		}
+	}
 	return nil
 }
 
@@ -69,18 +88,41 @@ func (s *Service) TestOptions() interface{} {
 	return &testOptions{}
 }
 
+// Prefers URL over Endpoint
 func (h *handler) Handle(event alert.Event) {
+	var err error
+
+	// Construct the body of the HTTP request
 	body := h.bp.Get()
 	defer h.bp.Put(body)
 	ad := alertDataFromEvent(event)
 
-	err := json.NewEncoder(body).Encode(ad)
+	err = json.NewEncoder(body).Encode(ad)
 	if err != nil {
 		h.logger.Printf("E! failed to marshal alert data json: %v", err)
 		return
 	}
 
-	resp, err := http.Post(h.url, "application/json", body)
+	// Create the HTTP request
+	var req *http.Request
+	if h.url != "" {
+		req, err = http.NewRequest("POST", h.url, body)
+		if err != nil {
+			h.logger.Printf("E! failed to create POST request: %v", err)
+			return
+		}
+	} else {
+		c, ok := h.s.endpoint(h.endpoint)
+		if !ok {
+			h.logger.Printf("E! endpoint does not exist: %v", h.endpoint)
+			return
+		}
+		req, err = c.NewRequest(body)
+	}
+
+	// Execute the request
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		h.logger.Printf("E! failed to POST alert data: %v", err)
 		return

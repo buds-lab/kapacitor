@@ -1,6 +1,8 @@
 package alertpost
 
 import (
+	"io"
+	"net/http"
 	"net/url"
 
 	"github.com/pkg/errors"
@@ -18,6 +20,19 @@ func NewConfig() Config {
 		Endpoint: "test",
 		URL:      "http://localhost:3000",
 	}
+}
+
+func (c Config) NewRequest(body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest("POST", c.URL, body)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range c.Headers {
+		req.Header.Add(k, v)
+	}
+
+	return req, nil
 }
 
 func (c Config) Validate() error {
@@ -46,4 +61,15 @@ func (cs Configs) Validate() error {
 		}
 	}
 	return nil
+}
+
+// Will create some garbage, but That should be fine
+func (cs Configs) index() map[string]Config {
+	m := map[string]Config{}
+
+	for _, c := range cs {
+		m[c.Endpoint] = c
+	}
+
+	return m
 }
